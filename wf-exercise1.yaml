@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: wf-exercise1
+spec:
+  entrypoint: dag-template
+  templates:
+  - name: dag-template
+    dag:
+      tasks:
+      - name: Task1
+        template: taskA-script-template
+      - name: Task2
+        template: taskB-container-template
+        dependencies: [Task1]
+      - name: Task3
+        template: taskC-resource-template
+        dependencies: [Task1]
+      - name: Task4
+        template: taskB-container-template
+        dependencies: [Task2]
+      - name: Task5
+        template: taskB-container-template
+        dependencies: [Task4]
+      - name: Task6
+        template: delay-template
+        dependencies: [Task3, Task5]
+      - name: Task7
+        template: taskA-script-template
+        dependencies: [Task6]
+
+  - name: taskA-script-template
+    script:
+      image: python:3.8-slim
+      command: [python]
+      source: |
+        print("Task A has executed taskA-script-template")
+
+  - name: taskB-container-template
+    container:
+      image: python:3.8-slim
+      command: [ echo, "Task B has executed taskB-container-template" ]
+
+  - name: taskC-resource-template
+    resource:
+      action: create
+      manifest: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: Workflow
+        metadata:
+          name: wf-resource-template
+        spec:
+          entrypoint: resource-template
+          templates:
+          - name: resource-template
+            script:
+              image: python:3.8-slim
+              command: [python]
+              source: |
+                print("Task C has executed resource-template")
+
+  - name: delay-template
+    suspend:
+      duration: "5s"
